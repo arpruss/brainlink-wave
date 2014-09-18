@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+      android:versionCode="1"
+      android:versionName="1.00" package="mobi.omegacentauri.blwave">
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <!--  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/> -->
+    <application android:label="Brainlink Wave"
+            android:icon="@drawable/icon"
+    >
+        <activity android:name=".BLWave"
+            android:icon="@drawable/icon"
+            android:label="Brainlink Wave"
+                              android:configChanges="keyboard|keyboardHidden|orientation"
+                  android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+    <uses-sdk android:minSdkVersion="8" android:targetSdkVersion="17"/>
+</manifest>
