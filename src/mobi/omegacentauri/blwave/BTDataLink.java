@@ -61,6 +61,11 @@ public class BTDataLink extends DataLink {
 	public boolean transmit(byte... data) {
 		try {
 			os.write(data);
+			String s = "";
+			for (byte d: data) {
+				s += Integer.toHexString(0xFF&(int)d)+" ";
+			}
+			Log.v("BLWave", s);
 			return true;
 		} catch (IOException e) {
 			return false;
