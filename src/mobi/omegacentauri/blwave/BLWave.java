@@ -37,6 +37,7 @@ import android.text.Html;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
@@ -67,7 +68,9 @@ public class BLWave extends Activity {
 		super.onCreate(savedInstanceState);
 		
 		options = PreferenceManager.getDefaultSharedPreferences(this);
-
+		
+		requestWindowFeature(Window.FEATURE_NO_TITLE);
+		
 		Log.v("BLFW", "OnCreate");
 		
 		setContentView(R.layout.main);
@@ -84,6 +87,9 @@ public class BLWave extends Activity {
 	@Override
 	public void onPause() {
 		super.onPause();
+		for (WaveChannel c : channels)
+			c.onPause();
+		
 		if (link != null) {
 			link.stop();
 			link = null;
@@ -217,7 +223,6 @@ public class BLWave extends Activity {
 			progressDialog = new ProgressDialog(c);
 			progressDialog.setCancelable(false);
 			progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-			progressDialog.show();
 		}
 		
 		@Override
@@ -235,6 +240,7 @@ public class BLWave extends Activity {
 				catch (Exception e) {					
 				}
 			}
+			progressDialog.show();
 		}
 		
 		public void progressValue(int current, int max) {
@@ -244,19 +250,24 @@ public class BLWave extends Activity {
 		@Override
 		protected String doInBackground(byte[]... args) {
 			try {
-				publishProgress("Connecting");
-				
 				if (link != null && !link.address.equals(device.getAddress())) {
 					link.stop();
 					link = null;
 				}
 				
 				if (link == null) {
+					publishProgress("Connecting");
+
 					link = new BTDataLink(device);
 				}
 				
+				publishProgress("Sending command");
 				if (! link.transmit((byte)'*')) {
+					publishProgress("Reconnecting");
+
 					link = new BTDataLink(device);
+
+					publishProgress("Sending command");
 				}
 
 				link.clearBuffer();
@@ -307,6 +318,11 @@ public class BLWave extends Activity {
 		EditText data;
 		View dataLayout;
 		char[] types = { 's', 'q', 't', 'a' };
+		static final String FREQ = "freq";
+		static final String TYPE = "type";
+		static final String DUTY = "duty";
+		static final String AMPL = "ampl";
+		static final String DATA = "data";
 		
 		public WaveChannel(int index, int freqID, int typeID, int dutyLayoutID, int dutyID, int amplLayoutID, int amplID, int dataLayoutID, int dataID) {
 			this.index = index;
@@ -333,6 +349,17 @@ public class BLWave extends Activity {
 					
 				}
 			});
+			
+			freqView.setText(options.getString(FREQ+index, "1000"));
+			int t = options.getInt(TYPE+index, 's');
+			for (int i=0; i<types.length; i++)
+				if (t == types[i]) {
+					type.setSelection(i);
+					break;
+				}
+			duty.setText(options.getString(DUTY+index, "32"));
+			ampl.setText(options.getString(AMPL+index, "255"));
+			data.setText(options.getString(DATA+index, ""));					
 		}
 		
 		public void updateViews() {
@@ -350,6 +377,12 @@ public class BLWave extends Activity {
 		
 		public void onPause() {
 			SharedPreferences.Editor ed = options.edit();
+			ed.putString(FREQ+index, freqView.getText().toString());
+			if (type.getSelectedItemPosition() >= 0)
+				ed.putInt(TYPE+index, types[type.getSelectedItemPosition()]);
+			ed.putString(DUTY+index, duty.getText().toString());
+			ed.putString(AMPL+index, ampl.getText().toString());
+			ed.putString(DATA+index, data.getText().toString());
 			ed.commit();
 		}
 		

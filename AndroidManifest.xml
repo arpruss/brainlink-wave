@@ -9,6 +9,7 @@
     >
         <activity android:name=".BLWave"
             android:icon="@drawable/icon"
+            android:screenOrientation="portrait"
             android:label="Brainlink Wave"
                               android:configChanges="keyboard|keyboardHidden|orientation"
                   android:launchMode="singleTask">
