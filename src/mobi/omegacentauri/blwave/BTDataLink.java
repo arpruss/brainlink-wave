@@ -1,4 +1,4 @@
-package mobi.omegacentauri.brainlinkfirmwareuploader;
+package mobi.omegacentauri.blwave;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,8 +15,10 @@ public class BTDataLink extends DataLink {
 	BluetoothSocket sock;
 	private OutputStream os;
 	private InputStream is;
+	public String address;
 
 	public BTDataLink(BluetoothDevice dev) throws IOException {
+		address = dev.getAddress();
 		for (int i = 0 ; i < 3 ; i++) {
 			try {
 				if (Build.VERSION.SDK_INT >= 10)
@@ -56,10 +58,12 @@ public class BTDataLink extends DataLink {
 	}
 
 	@Override
-	public void transmit(byte... data) {
+	public boolean transmit(byte... data) {
 		try {
 			os.write(data);
+			return true;
 		} catch (IOException e) {
+			return false;
 		}
 	}
 

@@ -31,6 +31,7 @@ import android.graphics.drawable.StateListDrawable;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.Preference;
 import android.preference.PreferenceManager;
 import android.text.Html;
 import android.util.Log;
@@ -40,6 +41,7 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.Spinner;
@@ -57,6 +59,8 @@ public class BLWave extends Activity {
 	private Spinner fwSpinner;
 	private ArrayList<BluetoothDevice> devs;
 	private static final String PREF_DISCLAIMED_VERSION = "disclaimed";
+	private WaveChannel[] channels;
+	private BTDataLink link = null;
 	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -68,34 +72,11 @@ public class BLWave extends Activity {
 		
 		setContentView(R.layout.main);
 		
-		message = (TextView)findViewById(R.id.message);
 		deviceSpinner = (Spinner)findViewById(R.id.device_spinner);
-		btSpinner = (Spinner)findViewById(R.id.bt_spinner);
-		btSpinner.setSelection(0);
-		fwSpinner = (Spinner)findViewById(R.id.firmware_spinner);
-		String fw = options.getString(PREF_FIRMWARE, firmwares[2]);
-		int fwIndex = 1;
-		for (int i = 0 ; i < firmwares.length ; i++) {
-			if (firmwares[i].equals(fw)) {
-				fwIndex = i;
-				break;
-			}
-		}
-		fwSpinner.setSelection(fwIndex);
-		fwSpinner.setOnItemSelectedListener(new OnItemSelectedListener() {
-
-			@Override
-			public void onItemSelected(AdapterView<?> arg0, View arg1,
-					int position, long arg3) {
-				options.edit().putString(PREF_FIRMWARE, firmwares[position]).commit();
-			}
-
-			@Override
-			public void onNothingSelected(AdapterView<?> arg0) {
-				// TODO Auto-generated method stub
-				
-			}
-		});
+		
+		channels = new WaveChannel[2];
+		channels[0] = new WaveChannel(0, R.id.freq_1, R.id.type_1, R.id.duty_1_layout, R.id.duty_1, R.id.ampl_layout_1, R.id.ampl_1, R.id.data_layout_1, R.id.data_1);
+		channels[1] = new WaveChannel(1, R.id.freq_2, R.id.type_2, R.id.duty_2_layout, R.id.duty_2, R.id.ampl_layout_2, R.id.ampl_2, R.id.data_layout_2, R.id.data_2);
 		
 		disclaimer();
 	}
@@ -103,21 +84,26 @@ public class BLWave extends Activity {
 	@Override
 	public void onPause() {
 		super.onPause();
+		if (link != null) {
+			link.stop();
+			link = null;
+		}
 	}
 	
-	public void clickedOn(View v) {
-		int pos = deviceSpinner.getSelectedItemPosition();
-		if (pos < 0) {
-			Toast.makeText(this, "Select a device", Toast.LENGTH_LONG).show();
-		}
-		else if (fwSpinner.getSelectedItemPosition() == 0 &&
-				btSpinner.getSelectedItemPosition() == 0) {
-			Toast.makeText(this, "Select Bluetooth mode or firmware", Toast.LENGTH_LONG).show();
-		}
-		else {
-			new UploadTask(this, devs.get(pos)).execute(firmwares[fwSpinner.getSelectedItemPosition()],
-					bts[btSpinner.getSelectedItemPosition()]);
-		}
+	public void play1(View v) {
+		channels[0].play();
+	}
+	
+	public void play2(View v) {
+		channels[1].play();
+	}
+	
+	public void stop1(View v) {
+		channels[0].stop();
+	}
+	
+	public void stop2(View v) {
+		channels[1].stop();
 	}
 	
 	public void clickedLicense(View v) {
@@ -164,6 +150,7 @@ public class BLWave extends Activity {
 	@Override
 	public void onResume() {
 		super.onResume();
+		
 		btAdapter = BluetoothAdapter.getDefaultAdapter();
 		devs = new ArrayList<BluetoothDevice>();
 		devs.addAll(btAdapter.getBondedDevices());
@@ -211,16 +198,21 @@ public class BLWave extends Activity {
 		
 		if (devs.size() == 0)
 			message.setText("Bluetooth turned off or no devices paired.");
+
+		for (WaveChannel c : channels)
+			c.onResume();
+
+		
 	}
 	
-	class UploadTask extends AsyncTask<String, String, String>{
+	class BluetoothTask extends AsyncTask<byte[], String, String>{
 		private ProgressDialog progressDialog;
 		private BluetoothDevice device;
 		private static final int FLASH_SIZE_BYTES = 16384;
 		private static final int FLASH_PAGE_SIZE_WORDS = 128;
 		private String lastMessage = "";
 
-		public UploadTask(Context c, BluetoothDevice device) {
+		public BluetoothTask(Context c, BluetoothDevice device) {
 			this.device = device;
 			progressDialog = new ProgressDialog(c);
 			progressDialog.setCancelable(false);
@@ -249,96 +241,48 @@ public class BLWave extends Activity {
 			publishProgress(lastMessage, ""+current, ""+max);
 		}
 		
-		private boolean setRN42Connectivity(BTDataLink link, String mode) {
-			link.clearBuffer();
-			link.transmit((byte)'$', (byte)'$', (byte)'$');
-			byte[] response = new byte[5];
-			if (!link.readBytes(response, 2000)) { 
-				Log.v("BLFW", "no response to dollar signs");
-				return false;
-			}
-
-			if(! new String(response).contains("CMD")) {
-				Log.v("BLFW", "got "+response);
-				return false;
-			}
-			
-			link.transmit((byte)'S', (byte)'J', (byte)',');
-			link.transmit(mode.getBytes());
-			link.transmit((byte)13, (byte)10);
-		
-			sleep(100);
-
-			link.clearBuffer();
-			
-			link.transmit((byte)'S', (byte)'I', (byte)',');
-			link.transmit(mode.getBytes());
-			link.transmit((byte)13, (byte)10);
-
-			sleep(100);
-		
-			link.clearBuffer();
-
-			link.transmit((byte)'-', (byte)'-', (byte)'-', (byte)13, (byte)10);
-
-			sleep(100);
-		
-			link.clearBuffer();
-			
-			return true;
-		}
-	
 		@Override
-		protected String doInBackground(String... args) {
-			String firmware = args[0];
-			String bt = args[1];
-			BTDataLink link = null;
-			Butterfly butterfly = null;
-			
+		protected String doInBackground(byte[]... args) {
 			try {
 				publishProgress("Connecting");
-				link = new BTDataLink(device);
 				
-				if (bt.length() > 0) {
-					publishProgress("Setting Bluetooth connectivity");
-					if (!setRN42Connectivity(link, bt)) {
-						throw new Exception("Error setting connectivity.");
-					}
+				if (link != null && !link.address.equals(device.getAddress())) {
+					link.stop();
+					link = null;
 				}
 				
-				if (firmware.length() > 0) {
-					publishProgress("Preparing firmware");
-					butterfly = new Butterfly(link, FLASH_SIZE_BYTES, FLASH_PAGE_SIZE_WORDS);
-					byte[] flash = butterfly.getFlashFromHex(BrainlinkFirmwareUploader.this.getResources().getAssets().open(firmware));
-					if (flash == null) 
-						throw new Exception("Problem reading .hex file.");
-	
-					publishProgress("Uploading firmware");
-					if (! butterfly.writeFlash(flash)) 
-						throw new Exception("Error uploading firmware.  Brainlink may not function until you upload successfully.");
-					
-					publishProgress("Verifying firmware");
-					byte[] newFlash = butterfly.readFlash();
-					if (!Arrays.equals(newFlash, flash)) 
-						throw new Exception("Error verifying uploaded firmware.  Brainlink may not function until you upload successfully.");
+				if (link == null) {
+					link = new BTDataLink(device);
+				}
+				
+				if (! link.transmit((byte)'*')) {
+					link = new BTDataLink(device);
+				}
+
+				link.clearBuffer();
+				link.transmit(args[0]);
+				String cmd = new String(args[0]);
+				byte[] response = new byte[args[0].length + 4];
+				link.readBytes(response, 1000);
+				String rsp = new String(response);
+				if (!rsp.contains(cmd)) {
+					return "Error sending data to Brainlink";
+				}
+				else if (rsp.contains("ERR")) {
+					return "Command not supported by Brainlink";
+				}
+				else {
+					return "Command sent";
 				}
 			}
 			catch (Exception e) {
 				return e.toString();
 			}
-			finally {
-				if (butterfly != null)
-					butterfly.stop();
-				if (link != null)
-					link.stop();
-			}
-			
-			return "Successful programming.";
 		}
 
 		@Override
 		protected void onPostExecute(String message) {
-			BrainlinkFirmwareUploader.this.message.setText(message);
+			Toast.makeText(BLWave.this, message, Toast.LENGTH_LONG).show();
 			progressDialog.dismiss();
 		}
 		
@@ -351,5 +295,172 @@ public class BLWave extends Activity {
 		}
 	}
 	
-	
+
+	private class WaveChannel {
+		int index;
+		EditText freqView;
+		Spinner type;
+		View dutyLayout;
+		EditText duty;
+		View amplLayout;
+		EditText ampl;
+		EditText data;
+		View dataLayout;
+		char[] types = { 's', 'q', 't', 'a' };
+		
+		public WaveChannel(int index, int freqID, int typeID, int dutyLayoutID, int dutyID, int amplLayoutID, int amplID, int dataLayoutID, int dataID) {
+			this.index = index;
+			freqView = (EditText)BLWave.this.findViewById(freqID);
+			type = (Spinner)BLWave.this.findViewById(typeID);
+			dutyLayout = findViewById(dutyLayoutID);
+			duty = (EditText)BLWave.this.findViewById(dutyID);
+			amplLayout = findViewById(amplLayoutID);
+			ampl = (EditText)BLWave.this.findViewById(amplID);
+			data = (EditText)BLWave.this.findViewById(dataID);
+			dataLayout = findViewById(dataLayoutID);
+
+			type.setOnItemSelectedListener(new OnItemSelectedListener() {
+
+				@Override
+				public void onItemSelected(AdapterView<?> arg0, View arg1,
+						int position, long arg3) {
+					updateViews();
+				}
+
+				@Override
+				public void onNothingSelected(AdapterView<?> arg0) {
+					// TODO Auto-generated method stub
+					
+				}
+			});
+		}
+		
+		public void updateViews() {
+			int v = type.getSelectedItemPosition();
+			if (v < 0)
+				return;
+			dutyLayout.setVisibility(types[v] == 'q' ? View.VISIBLE : View.GONE);
+			amplLayout.setVisibility(types[v] == 'a' ? View.GONE : View.VISIBLE);
+			dataLayout.setVisibility(types[v] == 'a' ? View.VISIBLE : View.GONE);
+		}
+		
+		public void onResume() {
+			updateViews();
+		}
+		
+		public void onPause() {
+			SharedPreferences.Editor ed = options.edit();
+			ed.commit();
+		}
+		
+		public void play() {
+			int pos = deviceSpinner.getSelectedItemPosition();
+			if (pos < 0) {
+				Toast.makeText(BLWave.this, "Select a device", Toast.LENGTH_LONG).show();
+			}
+			else {
+				byte[] cmd = generateCommand();
+				if (cmd != null) 
+					new BluetoothTask(BLWave.this, devs.get(pos)).execute(cmd);
+			}
+		}
+		
+		public byte[] generateArbitraryWaveCommand(int freq) {
+			String[] dd = data.getText().toString().replaceAll("[\\s\\n\\r,;]+", " ").replaceAll("^ ", "").replaceAll(" $", "").split(" ");
+			if (dd.length < 1 || dd.length > 64) {
+				Toast.makeText(BLWave.this, "Invalid data length", Toast.LENGTH_LONG).show();
+				return null;
+			}
+			byte[] cmd = new byte[6+dd.length];
+			cmd[0] = 'W';
+			cmd[1] = (byte)('0'+index);
+			cmd[2] = (byte)(freq >> 16);
+			cmd[3] = (byte)((freq >> 8)&0xFF);
+			cmd[4] = (byte)(freq & 0xFF);
+			cmd[5] = (byte)dd.length;
+			
+			for (int i=0; i<dd.length; i++) {
+				try {
+					int datum = Integer.parseInt(dd[i]);
+					if (datum < 0 || datum > 255)
+						throw new NumberFormatException();
+					cmd[6+i] = (byte)datum;
+				}
+				catch(NumberFormatException e) {
+					Toast.makeText(BLWave.this, "Invalid datum", Toast.LENGTH_LONG).show();
+					return null;
+				}
+			}
+			
+			return cmd;
+		}
+		
+		public byte[] generateCommand() {
+			int freq;
+			
+			try {
+				freq = Integer.parseInt(freqView.getText().toString());
+				if (freq < 1 || freq > 500000) 
+					throw new NumberFormatException();
+			} catch(NumberFormatException e) {
+				Toast.makeText(BLWave.this, "Invalid frequency", Toast.LENGTH_LONG).show();
+				return null;
+			}
+			
+			if (type.getSelectedItemPosition() < 0) {
+				Toast.makeText(BLWave.this, "Select waveform type", Toast.LENGTH_LONG).show();
+				return null;				
+			}
+			
+			char t = types[type.getSelectedItemPosition()];
+			if (t == 'a') {
+				return generateArbitraryWaveCommand(freq);
+			}
+			
+			byte[] cmd = new byte[8];
+			cmd[0] = 'w';
+			cmd[1] = (byte)('0' + index);
+			cmd[2] = (byte)t;
+			if (t == 'q') {
+				try {
+					int d = Integer.parseInt(duty.getText().toString());
+					if (d < 0 || d > 63)
+						throw new NumberFormatException();
+					cmd[3] = (byte)d;
+				} catch(NumberFormatException e) {
+					Toast.makeText(BLWave.this, "Invalid duty value", Toast.LENGTH_LONG).show();
+				}
+			}
+			else {
+				cmd[3] = 0;
+			}
+			
+			try {
+				int a = Integer.parseInt(ampl.getText().toString());
+				if (a < 0 || a > 255)
+					throw new NumberFormatException();
+				cmd[4] = (byte)a;
+			} catch(NumberFormatException e) {
+				Toast.makeText(BLWave.this, "Invalid amplitude value", Toast.LENGTH_LONG).show();
+			}
+			
+			cmd[5] = (byte)(freq >> 16);
+			cmd[6] = (byte)((freq >> 8)&0xFF);
+			cmd[7] = (byte)(freq & 0xFF);
+			
+			return cmd;
+		}
+		
+		public void stop() {
+			int pos = deviceSpinner.getSelectedItemPosition();
+			if (pos < 0) {
+				Toast.makeText(BLWave.this, "Select a device", Toast.LENGTH_LONG).show();
+			}
+			else {
+				byte[] cmd = new byte[] { '@', (byte)('0'+index) }; 
+				if (cmd != null) 
+					new BluetoothTask(BLWave.this, devs.get(pos)).execute(cmd);
+			}
+		}
+	}
 }

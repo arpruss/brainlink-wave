@@ -11,6 +11,12 @@
         android:contentDescription="pins 2-8 joined"
         android:src="@drawable/pins" />
 
+            <Spinner
+                android:id="@+id/device_spinner"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                />
+
     <ScrollView
         android:layout_width="fill_parent"
         android:layout_height="0dp"
@@ -64,7 +70,6 @@
                 android:id="@+id/type_1"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:entries="@array/types" />
 
             <LinearLayout
@@ -86,6 +91,7 @@
                     android:layout_width="150sp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:text="32"
                     android:textSize="20sp" >
                 </EditText>
             </LinearLayout>
@@ -108,10 +114,12 @@
                     android:id="@+id/ampl_1"
                     android:layout_width="150sp"
                     android:layout_height="wrap_content"
+                    android:text="255"
                     android:textSize="20sp" />
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/data_layout_1"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:gravity="top"
@@ -187,7 +195,6 @@
                 android:id="@+id/type_2"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:entries="@array/types" />
 
             <LinearLayout
@@ -208,6 +215,7 @@
                     android:id="@+id/duty_2"
                     android:layout_width="150sp"
                     android:layout_height="wrap_content"
+                    android:text="32"
                     android:layout_weight="1"
                     android:textSize="20sp" >
                 </EditText>
@@ -231,10 +239,12 @@
                     android:id="@+id/ampl_2"
                     android:layout_width="150sp"
                     android:layout_height="wrap_content"
+                    android:text="255"
                     android:textSize="20sp" />
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/data_layout_2"                
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:gravity="top"

@@ -4,7 +4,7 @@
 *
 */
 
-package mobi.omegacentauri.brainlinkfirmwareuploader;
+package mobi.omegacentauri.blwave;
 
 public abstract class DataLink {
 	 int baud;
@@ -15,14 +15,14 @@ public abstract class DataLink {
 	// returns null if nothing available
 	 public abstract byte[] receiveBytes();
 
-	 public abstract void transmit(byte... data);
+	 public abstract boolean transmit(byte... data);
 	 
-	 public void transmit(int... data) {
+	 public boolean transmit(int... data) {
 		 byte[] out = new byte[data.length];
 		 for (int i=0; i < data.length; i++) {
 			 out[i] = (byte)(int)data[i];
 		 }
-		 transmit(out);
+		 return transmit(out);
 	 }
 
 	public abstract void clearBuffer();
