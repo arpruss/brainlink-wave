@@ -56,8 +56,6 @@ public class BLWave extends Activity {
 	private SharedPreferences options;
 	private ArrayAdapter<String> deviceSelectionAdapter;
 	private Spinner deviceSpinner;
-	private Spinner btSpinner;
-	private Spinner fwSpinner;
 	private ArrayList<BluetoothDevice> devs;
 	private static final String PREF_DISCLAIMED_VERSION = "disclaimed";
 	private WaveChannel[] channels;
@@ -125,7 +123,7 @@ public class BLWave extends Activity {
 		int v;
 		try {
 			v = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
-			if (v == options.getInt(PREF_DISCLAIMED_VERSION , 0));
+			if (v == options.getInt(PREF_DISCLAIMED_VERSION , 0))
 				return;
 		} catch (NameNotFoundException e) {
 			v = 0;
@@ -133,8 +131,8 @@ public class BLWave extends Activity {
 
 		AlertDialog.Builder b = new AlertDialog.Builder(this);
 		b.setTitle("Disclaimer");
-		b.setMessage("USE THIS ONLY AT YOUR OWN RISK.  Omega Centauri Software takes no responsibility for any "+
-		"damage to data, hardware or persons.  Do you agree?");
+		b.setMessage(Html.fromHtml("USE THIS ONLY AT YOUR OWN RISK.  Omega Centauri Software takes no responsibility for any "+
+		"damage to data, hardware or persons.<br/>In particular, use Ohm's Law to ensure that current draw from Brainlink does not exceed 20mA.<br/>Do you agree?"));
 		b.setNegativeButton("Disagree", new OnClickListener() {
 			
 			@Override
@@ -147,7 +145,7 @@ public class BLWave extends Activity {
 			
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
-				options.edit().putInt(PREF_DISCLAIMED_VERSION, v0);
+				options.edit().putInt(PREF_DISCLAIMED_VERSION, v0).commit();
 			}
 		});
 		b.create().show();
@@ -357,8 +355,8 @@ public class BLWave extends Activity {
 					type.setSelection(i);
 					break;
 				}
-			duty.setText(options.getString(DUTY+index, "32"));
-			ampl.setText(options.getString(AMPL+index, "255"));
+			duty.setText(options.getString(DUTY+index, "50"));
+			ampl.setText(options.getString(AMPL+index, "0.8"));
 			data.setText(options.getString(DATA+index, ""));					
 		}
 		
@@ -414,13 +412,13 @@ public class BLWave extends Activity {
 			
 			for (int i=0; i<dd.length; i++) {
 				try {
-					int datum = Integer.parseInt(dd[i]);
+					int datum = (int)(0.5+Double.parseDouble(dd[i])*255/3.3);
 					if (datum < 0 || datum > 255)
 						throw new NumberFormatException();
 					cmd[6+i] = (byte)datum;
 				}
 				catch(NumberFormatException e) {
-					Toast.makeText(BLWave.this, "Invalid datum", Toast.LENGTH_LONG).show();
+					Toast.makeText(BLWave.this, "Invalid datum "+dd[i], Toast.LENGTH_LONG).show();
 					return null;
 				}
 			}
@@ -436,7 +434,7 @@ public class BLWave extends Activity {
 				if (freq < 1 || freq > 500000) 
 					throw new NumberFormatException();
 			} catch(NumberFormatException e) {
-				Toast.makeText(BLWave.this, "Invalid frequency", Toast.LENGTH_LONG).show();
+				Toast.makeText(BLWave.this, "Invalid frequency value", Toast.LENGTH_LONG).show();
 				return null;
 			}
 			
@@ -456,12 +454,12 @@ public class BLWave extends Activity {
 			cmd[2] = (byte)t;
 			if (t == 'q') {
 				try {
-					int d = Integer.parseInt(duty.getText().toString());
+					int d = (int)(Double.parseDouble(duty.getText().toString())/100.*63+0.5);
 					if (d < 0 || d > 63)
 						throw new NumberFormatException();
 					cmd[3] = (byte)d;
 				} catch(NumberFormatException e) {
-					Toast.makeText(BLWave.this, "Invalid duty value", Toast.LENGTH_LONG).show();
+					Toast.makeText(BLWave.this, "Invalid duty cycle", Toast.LENGTH_LONG).show();
 				}
 			}
 			else {
@@ -469,7 +467,7 @@ public class BLWave extends Activity {
 			}
 			
 			try {
-				int a = Integer.parseInt(ampl.getText().toString());
+				int a = (int)(0.5+255*Double.parseDouble(ampl.getText().toString()));
 				if (a < 0 || a > 255)
 					throw new NumberFormatException();
 				cmd[4] = (byte)a;
