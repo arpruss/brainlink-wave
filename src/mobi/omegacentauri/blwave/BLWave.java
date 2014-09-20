@@ -245,6 +245,19 @@ public class BLWave extends Activity {
 			publishProgress(lastMessage, ""+current, ""+max);
 		}
 		
+		private boolean connect() {
+			link.clearBuffer();
+			if (!link.transmit((byte)'*'))
+				return false;
+			byte[] resp = new byte[1];
+			if (link.readBytes(resp, 1000)) {
+				Log.v("BLWave", "<"+resp[0]);
+				return true;
+			}
+			Log.v("BLWave", "oops");
+			return false;
+		}
+		
 		@Override
 		protected String doInBackground(byte[]... args) {
 			try {
@@ -260,7 +273,7 @@ public class BLWave extends Activity {
 				}
 				
 				publishProgress("Sending command");
-				if (! link.transmit((byte)'*')) {
+				if (! connect()) {
 					publishProgress("Reconnecting");
 
 					link = new BTDataLink(device);
@@ -273,6 +286,7 @@ public class BLWave extends Activity {
 				String cmd = new String(args[0]);
 				byte[] response = new byte[args[0].length + 4];
 				link.readBytes(response, 1000);
+
 				String rsp = new String(response);
 				if (!rsp.contains(cmd)) {
 					return "Error sending data to Brainlink";
@@ -467,7 +481,7 @@ public class BLWave extends Activity {
 			}
 			
 			try {
-				int a = (int)(0.5+255*Double.parseDouble(ampl.getText().toString()));
+				int a = (int)(0.5+255/3.3*Double.parseDouble(ampl.getText().toString()));
 				if (a < 0 || a > 255)
 					throw new NumberFormatException();
 				cmd[4] = (byte)a;

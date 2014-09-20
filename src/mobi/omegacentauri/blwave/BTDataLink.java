@@ -6,11 +6,13 @@ import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.util.UUID;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.os.Build;
 import android.util.Log;
 
+@SuppressLint("NewApi")
 public class BTDataLink extends DataLink {
 	BluetoothSocket sock;
 	private OutputStream os;
